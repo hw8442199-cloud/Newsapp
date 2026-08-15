@@ -1,0 +1,32 @@
+# Render Blueprint. Deploy with: Render dashboard -> New + -> Blueprint,
+# pointing at the GitHub repo this file lives in.
+#
+# Single web service -- the pipeline runs as a background task inside
+# this same process (see main.py) rather than as a separate cron
+# service, so there's no issue with a disk not being shared across
+# services.
+#
+# NVIDIA_API_KEY needs to be set as a secret in the Render dashboard
+# after the first deploy -- Blueprints intentionally don't let you
+# commit secret values here (sync: false prompts you instead).
+
+services:
+  - type: web
+    name: wire-and-brass
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: NVIDIA_API_KEY
+        sync: false
+      - key: SITE_URL
+        value: https://wire-and-brass.onrender.com   # update to match your actual Render service URL
+      - key: NEWS_DB_PATH
+        value: /data/news.db
+      - key: PIPELINE_INTERVAL_SECONDS
+        value: "1800"   # how often (seconds) the background pipeline runs -- 1800 = 30 min
+    disk:
+      name: newsapp-data
+      mountPath: /data
+      sizeGB: 1   # ~$0.25/mo. Delete this whole `disk:` block (and the NEWS_DB_PATH line above) to stay fully free -- SQLite just won't reliably survive redeploys without it.

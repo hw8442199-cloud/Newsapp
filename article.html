@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title %}{{ article.headline }} — {{ site_name }}{% endblock %}
+{% block content %}
+
+<article class="full-article">
+  <a href="/" class="back-link">&larr; All stories</a>
+
+  <span class="eyebrow">Cross-verified report</span>
+  <h1 class="article-headline">{{ article.headline }}</h1>
+  <p class="article-dek">{{ article.dek }}</p>
+
+  <div class="evidence-line evidence-line--article">
+    <span class="evidence-count">[{{ article.source_count }} SOURCES]</span>
+    <span class="evidence-names">{{ article.sources | join(' · ') | upper }}</span>
+  </div>
+  <time class="article-time">{{ article.published_at | fmt_date }}</time>
+
+  <div class="article-rule"></div>
+
+  <div class="article-body">
+    {% for para in article.body.split('\n\n') %}
+    <p>{{ para }}</p>
+    {% endfor %}
+  </div>
+
+  <div class="article-rule"></div>
+
+  <div class="sourcing-panel">
+    <h3>Sourcing</h3>
+    <p class="sourcing-note">This article was synthesized from the following original reports. It is not a copy of any single one of them.</p>
+    <ul class="sourcing-list">
+      {% for s in article.source_links %}
+      <li>
+        <span class="sourcing-outlet">{{ s.source }}</span>
+        <a href="{{ s.link }}" target="_blank" rel="noopener">{{ s.title }}</a>
+      </li>
+      {% endfor %}
+    </ul>
+  </div>
+</article>
+
+{% endblock %}
