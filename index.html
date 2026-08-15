@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block content %}
+
+{% if articles %}
+<section class="lead-story">
+  {% set lead = articles[0] %}
+  <a href="/article/{{ lead.slug }}" class="lead-link">
+    {% if lead.image_url %}
+    <div class="lead-image" style="background-image: url('{{ lead.image_url }}')"></div>
+    {% endif %}
+    <span class="eyebrow">Latest</span>
+    <h1 class="lead-headline">{{ lead.headline }}</h1>
+    <p class="lead-dek">{{ lead.dek }}</p>
+    <div class="evidence-line{{ '' if lead.verified else ' evidence-line--unverified' }}">
+      <span class="evidence-count">[{{ lead.source_count }} SOURCE{{ 'S' if lead.source_count != 1 else '' }}{{ ' · CROSS-VERIFIED' if lead.verified else ' · SINGLE-SOURCE' }}]</span>
+      <span class="evidence-names">{{ lead.sources | join(' · ') | upper }}</span>
+    </div>
+  </a>
+</section>
+{% endif %}
+
+<section class="story-grid">
+  {% for a in articles[1:] %}
+  <article class="story-card">
+    <a href="/article/{{ a.slug }}" class="card-link">
+      {% if a.image_url %}
+      <div class="card-thumb" style="background-image: url('{{ a.image_url }}')"></div>
+      {% endif %}
+      <div class="card-text">
+        <h2 class="card-headline">{{ a.headline }}</h2>
+        <p class="card-dek">{{ a.dek }}</p>
+        <div class="evidence-line evidence-line--small{{ '' if a.verified else ' evidence-line--unverified' }}">
+          <span class="evidence-count">[{{ a.source_count }}{{ '' if a.verified else ' · 1-SRC' }}]</span>
+          <span class="evidence-names">{{ a.sources | join(' · ') | upper }}</span>
+        </div>
+        <time class="card-time">{{ a.published_at | fmt_date }}</time>
+      </div>
+    </a>
+  </article>
+  {% else %}
+  {% if not articles %}
+  <div class="empty-state">
+    <p>No stories yet. Run <code>python run_pipeline.py</code> to fetch, cluster, and write the first batch.</p>
+  </div>
+  {% endif %}
+  {% endfor %}
+</section>
+
+{% endblock %}

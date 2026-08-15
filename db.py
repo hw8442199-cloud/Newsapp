@@ -30,10 +30,24 @@ CREATE TABLE IF NOT EXISTS articles (
     source_count INTEGER NOT NULL,
     source_links TEXT NOT NULL,   -- JSON array of {source, title, link}
     cluster_hash TEXT UNIQUE NOT NULL,  -- dedupe key so re-runs don't republish
-    published_at TEXT NOT NULL
+    published_at TEXT NOT NULL,
+    verified INTEGER NOT NULL DEFAULT 0,   -- 1 = 2+ independently owned outlets
+    reliability_note TEXT NOT NULL DEFAULT '',
+    image_url TEXT,                -- og:image pulled from a source article, or NULL
+    image_credit TEXT              -- which outlet the image came from
 );
 CREATE INDEX IF NOT EXISTS idx_published_at ON articles (published_at DESC);
 """
+
+# Columns added after the original schema. init_db() adds any of these
+# that are missing from an existing DB file, so upgrading doesn't
+# require deleting news.db.
+_MIGRATION_COLUMNS = {
+    "verified":         "INTEGER NOT NULL DEFAULT 0",
+    "reliability_note": "TEXT NOT NULL DEFAULT ''",
+    "image_url":        "TEXT",
+    "image_credit":     "TEXT",
+}
 
 
 @contextmanager
@@ -54,6 +68,10 @@ def get_conn():
 def init_db():
     with get_conn() as conn:
         conn.executescript(SCHEMA)
+        existing_cols = {row["name"] for row in conn.execute("PRAGMA table_info(articles)")}
+        for col, decl in _MIGRATION_COLUMNS.items():
+            if col not in existing_cols:
+                conn.execute(f"ALTER TABLE articles ADD COLUMN {col} {decl}")
 
 
 def slugify(headline, chash):
@@ -97,7 +115,7 @@ def article_exists(chash):
         return row is not None
 
 
-def save_article(cluster, written):
+def save_article(cluster, written, image_url=None, image_credit=None):
     """Returns the new article's slug, or None if nothing was actually
     inserted (e.g. a concurrent run already saved this exact story --
     see the ON CONFLICT clause). Callers must check for None rather than
@@ -112,8 +130,9 @@ def save_article(cluster, written):
         cur = conn.execute(
             """INSERT INTO articles
                (slug, headline, dek, body, sources, source_count,
-                source_links, cluster_hash, published_at)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                source_links, cluster_hash, published_at, verified,
+                reliability_note, image_url, image_credit)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                ON CONFLICT(cluster_hash) DO NOTHING""",
             (
                 slug,
@@ -125,6 +144,10 @@ def save_article(cluster, written):
                 json.dumps(source_links),
                 chash,
                 datetime.now(timezone.utc).isoformat(),
+                1 if cluster.get("verified") else 0,
+                written.get("reliability_note", ""),
+                image_url,
+                image_credit,
             ),
         )
         if cur.rowcount == 0:

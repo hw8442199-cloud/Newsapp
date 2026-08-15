@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block title %}{{ article.headline }} — {{ site_name }}{% endblock %}
+{% block content %}
+
+<article class="full-article">
+  <a href="/" class="back-link">&larr; All stories</a>
+
+  <span class="eyebrow">{{ 'Cross-verified report' if article.verified else 'Single-source report' }}</span>
+  <h1 class="article-headline">{{ article.headline }}</h1>
+  <p class="article-dek">{{ article.dek }}</p>
+
+  <div class="evidence-line evidence-line--article{{ '' if article.verified else ' evidence-line--unverified' }}">
+    <span class="evidence-count">[{{ article.source_count }} SOURCE{{ 'S' if article.source_count != 1 else '' }}{{ ' · CROSS-VERIFIED' if article.verified else ' · NOT YET CORROBORATED' }}]</span>
+    <span class="evidence-names">{{ article.sources | join(' · ') | upper }}</span>
+  </div>
+  <time class="article-time">{{ article.published_at | fmt_date }}</time>
+
+  {% if article.image_url %}
+  <figure class="article-hero">
+    <img src="{{ article.image_url }}" alt="" loading="lazy"
+         onerror="this.closest('.article-hero').style.display='none'">
+    {% if article.image_credit %}
+    <figcaption>Image via {{ article.image_credit }}</figcaption>
+    {% endif %}
+  </figure>
+  {% endif %}
+
+  <div class="article-rule"></div>
+
+  {% if article.reliability_note %}
+  <p class="reliability-note">{{ article.reliability_note }}</p>
+  {% endif %}
+
+  <div class="article-body">
+    {% for para in article.body.split('\n\n') %}
+    <p>{{ para }}</p>
+    {% endfor %}
+  </div>
+
+  <div class="article-rule"></div>
+
+  <div class="sourcing-panel">
+    <h3>Sourcing</h3>
+    <p class="sourcing-note">This article was synthesized from the following original reports. It is not a copy of any single one of them.</p>
+    <ul class="sourcing-list">
+      {% for s in article.source_links %}
+      <li>
+        <span class="sourcing-outlet">{{ s.source }}</span>
+        <a href="{{ s.link }}" target="_blank" rel="noopener">{{ s.title }}</a>
+      </li>
+      {% endfor %}
+    </ul>
+  </div>
+</article>
+
+{% endblock %}

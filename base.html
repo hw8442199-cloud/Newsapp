@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}{{ site_name }}{% endblock %}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,500;0,9..144,600;1,9..144,500&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/style.css">
+  <link rel="alternate" type="application/rss+xml" title="{{ site_name }} RSS" href="/rss.xml">
+</head>
+<body>
+  <header class="masthead">
+    <div class="masthead-inner">
+      <a href="/" class="wordmark">
+        <span class="wordmark-main">Wire</span><span class="wordmark-amp">&amp;</span><span class="wordmark-main">Brass</span>
+      </a>
+      <p class="tagline">{% block tagline %}News, cross-checked before it's written.{% endblock %}</p>
+      <a class="rss-link" href="/rss.xml" title="RSS feed">RSS</a>
+    </div>
+    <div class="masthead-rule"></div>
+  </header>
+
+  <main>
+    {% block content %}{% endblock %}
+  </main>
+
+  <footer class="site-footer">
+    <div class="footer-rule"></div>
+    <p>Stories are labeled by how corroborated they are. Cross-verified means 2 or more independently owned outlets report it. Single-source stories are marked as such, with a sourcing note on the reporting outlet.</p>
+  </footer>
+</body>
+</html>

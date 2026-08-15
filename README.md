@@ -1,9 +1,12 @@
 # Wire & Brass — AI newsroom pipeline
 
-Fetches RSS feeds, clusters items into stories, and only writes a full
-article via NVIDIA Nemotron once a story is confirmed by 2+
-*independently owned* outlets. Serves the result as a site + your own
-RSS feed.
+Fetches RSS feeds, clusters items into stories, and writes a full
+article via NVIDIA Nemotron for every story -- cross-verified (2+
+*independently owned* outlets) and single-source alike. Single-source
+stories are clearly labeled and hedged in the writing; cross-verified
+ones aren't. Each article also carries the real image from one of its
+source articles (og:image), when one is available. Serves the result as
+a site + your own RSS feed.
 
 ## Setup
 
@@ -60,6 +63,39 @@ Netlify won't work for this project -- it only hosts static sites and
 short-lived serverless functions, not a persistent server with a
 SQLite file on disk. If you see Netlify's generic 404 after deploying
 there, that's why: nothing about your app ever actually ran.
+
+## Sourcing model
+
+Every story that clears clustering gets written and published -- nothing
+is silently dropped anymore. What changes is how it's labeled and
+written:
+
+- **Cross-verified** (2+ independently owned outlets, per `SOURCE_GROUPS`
+  in `cluster_news.py`): facts are stated plainly.
+- **Single-source**: the article attributes claims to the reporting
+  outlet throughout ("X reports...") instead of stating them as settled
+  fact, and carries a `reliability_note` -- one sentence the AI writes,
+  but *grounded only in facts you gave it*: the outlet's ownership/format
+  (`SOURCE_PROFILES` in `cluster_news.py`) and whether the story is
+  corroborated. It's not a free-floating AI trust score -- deliberately
+  so, since an LLM guessing at outlet trustworthiness from nothing is
+  exactly the kind of ungrounded claim that shouldn't end up on a news
+  site. `SOURCE_PROFILES` is factual (ownership, aggregator vs. original
+  reporting) and, like `SOURCE_GROUPS`, illustrative rather than
+  authoritative -- maintain it yourself.
+
+Single-source volume can be large (every unclustered RSS item becomes
+its own story), so `run_pipeline.py` caps how many single-source stories
+get AI-written per run via `MAX_SINGLE_SOURCE_PER_RUN` (default 15;
+override via env var). Cross-verified stories are never capped.
+
+## Images
+
+`pipeline/images.py` pulls the `og:image` (falling back to
+`twitter:image`) from one of a story's source articles -- the same image
+the outlet itself uses when the article is shared on social media. If no
+source exposes one, the story is shown without an image. No AI-generated
+images, no stock photos.
 
 ## What changed from the reviewed version
 

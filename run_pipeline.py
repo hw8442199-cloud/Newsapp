@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """
-Runs the full pipeline once: fetch feeds -> cluster -> filter to
-cross-verified stories -> skip ones already published -> AI-write the
-rest -> store in SQLite.
+Runs the full pipeline once: fetch feeds -> cluster -> label each story
+verified (2+ independently owned outlets) or single-source -> skip ones
+already published -> AI-write the rest, with a fetched source image ->
+store in SQLite.
 
 Run manually:
     python run_pipeline.py
@@ -24,11 +25,20 @@ from dotenv import load_dotenv
 load_dotenv()
 
 import db
-from pipeline.cluster_news import get_verified_clusters
+from pipeline.cluster_news import get_clusters
 from pipeline.ai_writer import write_article
+from pipeline.images import get_cluster_image
 
 APP_DIR = Path(__file__).resolve().parent
 LOCK_PATH = APP_DIR / ".pipeline.lock"
+
+# Single-source stories are no longer filtered out, but every RSS item
+# that doesn't cluster with another becomes its own single-source
+# "story" -- across 11 feeds x 25 items that can be 100+ per run. This
+# caps how many single-source stories get AI-written per run so one
+# pipeline tick can't quietly burn through a large number of API calls.
+# Cross-verified stories are never capped. Override via env if needed.
+MAX_SINGLE_SOURCE_PER_RUN = int(os.environ.get("MAX_SINGLE_SOURCE_PER_RUN", "15"))
 
 
 def acquire_lock():
@@ -63,8 +73,12 @@ def run():
     db.init_db()
 
     print("Fetching + clustering feeds...")
-    clusters = get_verified_clusters()
-    print(f"Found {len(clusters)} cross-verified clusters.\n")
+    all_clusters = get_clusters()
+    verified = [c for c in all_clusters if c["verified"]]
+    singles = [c for c in all_clusters if not c["verified"]][:MAX_SINGLE_SOURCE_PER_RUN]
+    clusters = verified + singles
+    print(f"Found {len(verified)} cross-verified + {len(singles)} single-source "
+          f"stories to consider (single-source capped at {MAX_SINGLE_SOURCE_PER_RUN}/run).\n")
 
     written, skipped, failed = 0, 0, 0
     for cluster in clusters:
@@ -73,15 +87,20 @@ def run():
             skipped += 1
             continue
 
+        tag = "verified" if cluster["verified"] else "single-source"
         top_titles = ", ".join(it["title"][:40] for it in cluster["items"][:2])
-        print(f"[{cluster['source_count']} sources] Writing: {top_titles}...")
+        print(f"[{cluster['source_count']} sources, {tag}] Writing: {top_titles}...")
 
         result = write_article(cluster)
         if result is None:
             failed += 1
             continue
 
-        slug = db.save_article(cluster, result)
+        image_url, image_credit = get_cluster_image(cluster)
+        if image_url:
+            print(f"  -> image from {image_credit}")
+
+        slug = db.save_article(cluster, result, image_url, image_credit)
         if slug is None:
             # Another run (or another pass this run) already saved this
             # exact story between our exists-check and our insert -- not
